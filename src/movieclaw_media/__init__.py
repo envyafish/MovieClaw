@@ -55,6 +55,12 @@ from movieclaw_media.models import (
     MediaVideo,
 )
 from movieclaw_media.service import MediaDiscoverService
+from movieclaw_media.trakt import (
+    TraktItem,
+    calendar_note,
+    parse_calendar,
+    parse_listing,
+)
 from movieclaw_media.tmdb import (
     TmdbAuthError,
     TmdbClient,
@@ -104,4 +110,8 @@ __all__ = [
     "TmdbNetworkError",
     "TmdbNotConfiguredError",
     "TmdbNotFoundError",
+    "TraktItem",
+    "calendar_note",
+    "parse_calendar",
+    "parse_listing",
 ]

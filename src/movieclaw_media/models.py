@@ -35,6 +35,7 @@ class MediaSource(StrEnum):
 
     TMDB = "tmdb"
     DOUBAN = "douban"
+    TRAKT = "trakt"
 
 
 class MediaLibraryStatus(BaseModel):
