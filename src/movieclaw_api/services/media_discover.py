@@ -27,6 +27,8 @@ from movieclaw_net import browser_tls_context, egress_transport
 _service: MediaDiscoverService | None = None
 _douban_service: DoubanDiscoverService | None = None
 _tmdb_client: TmdbClient | None = None
+_trakt_client: object | None = None
+_trakt_identity: tuple[str, str] | None = None
 
 
 def get_tmdb_client() -> TmdbClient:
@@ -100,7 +102,7 @@ def get_douban_media_service() -> DoubanDiscoverService:
 
 async def close_media_service() -> None:
     """关闭单例持有的 HTTP 连接池（应用关闭时由 lifespan 调用）。"""
-    global _service, _douban_service, _tmdb_client
+    global _service, _douban_service, _tmdb_client, _trakt_client, _trakt_identity
     if _service is not None:
         await _service.aclose()
         _service = None
@@ -110,11 +112,41 @@ async def close_media_service() -> None:
     if _tmdb_client is not None:
         await _tmdb_client.aclose()
         _tmdb_client = None
+    if _trakt_client is not None:
+        await _trakt_client.aclose()
+        _trakt_client = None
+        _trakt_identity = None
 
 
 def reset_media_service() -> None:
     """仅供测试：丢弃单例，让下个用例按新配置重建。"""
-    global _service, _douban_service, _tmdb_client
+    global _service, _douban_service, _tmdb_client, _trakt_client, _trakt_identity
     _service = None
     _douban_service = None
     _tmdb_client = None
+    _trakt_client = None
+    _trakt_identity = None
+
+
+async def open_trakt_client():
+    """按当前应用凭证复用一个 Trakt 客户端。凭证变了就换新的。"""
+    import os
+
+    from movieclaw_api.settings import TraktAppSetting, get_setting_store
+    from movieclaw_media.trakt import TraktClient
+    from movieclaw_net import egress_transport
+
+    global _trakt_client, _trakt_identity
+    setting = await get_setting_store().get(TraktAppSetting)
+    identity = (setting.client_id, setting.client_secret)
+    if _trakt_client is None or _trakt_identity != identity:
+        if _trakt_client is not None:
+            await _trakt_client.aclose()
+        _trakt_client = TraktClient(
+            setting.client_id,
+            setting.client_secret,
+            transport=egress_transport("trakt"),
+            base_url=os.environ.get("TRAKT_API_BASE_URL", "https://api.trakt.tv"),
+        )
+        _trakt_identity = identity
+    return _trakt_client

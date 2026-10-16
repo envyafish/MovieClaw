@@ -89,6 +89,16 @@ class UpstreamServiceException(AppException):
         )
 
 
+class TraktAppUnauthorizedException(AppException):
+    """Trakt 公开接口拒绝了应用凭证。"""
+
+    def __init__(
+        self,
+        message: str = "Trakt 应用凭证无效，请管理员检查 Client ID 和 Client Secret",
+    ) -> None:
+        super().__init__(status_code=502, code="TRAKT_APP_UNAUTHORIZED", message=message)
+
+
 class UpstreamUnreachableException(AppException):
     """上游服务在网络层面不可达（连接失败/超时/熔断）。
 

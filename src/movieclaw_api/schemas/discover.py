@@ -91,9 +91,18 @@ class DiscoveredTitleView(BaseModel):
     overview: str = ""
     poster_url: str
     backdrop_url: str | None = None
+    note: str = Field(default="", description="海报标题下的备注；为空时前端显示年份")
+    navigable: bool = Field(default=True, description="能否点进详情")
     library_status: MediaLibraryStatus | None = Field(
         default=None, description="本地在位库存摘要；未匹配到本地条目时为空"
     )
+
+
+class DiscoveryCollectionNotice(BaseModel):
+    """片单没有条目时给发现页的一行说明。"""
+
+    code: str
+    message: str
 
 
 class DiscoveryCollectionTitlesView(BaseModel):
@@ -107,6 +116,7 @@ class DiscoveryCollectionTitlesView(BaseModel):
     total_pages: int = Field(default=1, ge=1)
     total_results: int = Field(default=0, ge=0)
     has_more: bool = False
+    notice: DiscoveryCollectionNotice | None = None
 
 
 class DiscoveryGenreView(BaseModel):

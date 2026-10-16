@@ -67,6 +67,9 @@ async def set_trakt_app(payload: TraktAppPayload) -> ApiResponse[TraktAppView]:
     await store.set(saved)
     if changed:
         await delete_trakt_connections()
+    from movieclaw_api.services.media_discover import reset_media_service
+
+    reset_media_service()
     return ok(_view(saved))
 
 

@@ -18,6 +18,7 @@ from movieclaw_api.exceptions import (
     AppException,
     BadRequestException,
     NotFoundException,
+    TraktAppUnauthorizedException,
     UpstreamServiceException,
     UpstreamUnreachableException,
 )
@@ -56,6 +57,7 @@ from movieclaw_media import (
     TmdbNetworkError,
     TmdbNotFoundError,
 )
+from movieclaw_media.trakt import TraktError, TraktNetworkError
 
 logger = logging.getLogger("movieclaw_api.discover")
 
@@ -75,12 +77,22 @@ async def get_projection(
     )
 
 
-def _translate(exc: TmdbError | DoubanError) -> AppException:
+def _translate(exc: TmdbError | DoubanError | TraktError) -> AppException:
     """上游影视数据错误 → API 统一异常（message 已是面向用户的中文）。
 
     网络级不可达（含熔断快速失败）给结构化的 UPSTREAM_UNREACHABLE：
     前端据此渲染「原因说明 + 跳转网络设置」的引导错误态。
     """
+    if isinstance(exc, TraktAppUnauthorizedException):
+        return exc
+    if isinstance(exc, TraktNetworkError):
+        return UpstreamUnreachableException(
+            str(exc),
+            service="trakt",
+            hint="到「设置 → 网络」为 Trakt 配置代理，保存后用连通性测试验证",
+        )
+    if isinstance(exc, TraktError):
+        return UpstreamServiceException(str(exc))
     if isinstance(exc, (TmdbNotFoundError, DoubanNotFoundError)):
         return NotFoundException(str(exc))
     if isinstance(exc, TmdbNetworkError):
@@ -119,9 +131,13 @@ async def list_discovery_collections(
     响应中的 ``collection_ref`` 是稳定引用；浏览某个片单时应原样传给
     ``browse-collection``，不要自行拆分或拼接来源、类型与片单 ID。
     """
+    if provider is MediaSource.TRAKT:
+        from movieclaw_api.services.trakt_discover import require_trakt_app
+
+        await require_trakt_app()
     try:
         collections = service.list_collections(media_type, provider)
-    except (TmdbError, DoubanError) as exc:
+    except (TmdbError, DoubanError, TraktError) as exc:
         raise _translate(exc) from exc
     return ok(
         DiscoveryCollectionListView(
@@ -144,20 +160,26 @@ async def browse_discovery_collection(
     page: int = Query(1, ge=1, le=500, description="TMDB 原生页码；豆瓣片单恒为第 1 页"),
     service: TitleDiscoveryService = Depends(get_title_discovery_service),
     projection: DiscoverLibraryProjectionService = Depends(get_projection),
+    principal: Principal = Depends(require_login),
 ) -> ApiResponse[DiscoveryCollectionTitlesView]:
     """读取 ``list-collections`` 返回的一个片单，并附带当前主体可见的库存摘要。"""
     try:
+        if collection_ref.startswith("trakt:"):
+            from movieclaw_api.services.trakt_discover import require_trakt_app
+
+            await require_trakt_app()
         result = await service.browse_collection(
             collection_ref,
             limit=limit,
             page=page,
             projection=projection,
+            owner_id=principal.owner_id,
         )
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
-    except (TmdbError, DoubanError) as exc:
+    except (TmdbError, DoubanError, TraktError) as exc:
         raise _translate(exc) from exc
     return ok(result)
 
@@ -271,6 +293,8 @@ async def get_discovered_title_details(
         result = await service.get_title_details(title_ref, projection=projection)
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
+    except LookupError as exc:
+        raise NotFoundException(str(exc)) from exc
     except (TmdbError, DoubanError) as exc:
         raise _translate(exc) from exc
     return ok(result)
@@ -309,9 +333,13 @@ async def get_discovery_page(
     service: TitleDiscoveryService = Depends(get_title_discovery_service),
 ) -> ApiResponse[DiscoveryPageView]:
     """Web 专用轻量协议：只决定 Hero/排名行/普通行，不携带任何片单条目。"""
+    if provider is MediaSource.TRAKT:
+        from movieclaw_api.services.trakt_discover import require_trakt_app
+
+        await require_trakt_app()
     try:
         collections = service.list_collections(media_type, provider)
-    except (TmdbError, DoubanError) as exc:
+    except (TmdbError, DoubanError, TraktError) as exc:
         raise _translate(exc) from exc
     sections = []
     for collection in collections:

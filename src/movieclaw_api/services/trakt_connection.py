@@ -106,8 +106,9 @@ async def delete_trakt_connections() -> None:
 
 
 async def get_trakt_client() -> TraktClient:
-    setting = await get_setting_store().get(TraktAppSetting)
-    return TraktClient(setting.client_id, setting.client_secret)
+    from movieclaw_api.services.media_discover import open_trakt_client
+
+    return await open_trakt_client()
 
 
 async def show_connection(owner_id: int) -> TraktConnectionView:

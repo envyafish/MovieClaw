@@ -75,14 +75,20 @@ class TitleDiscoveryService:
         self,
         tmdb_factory: Callable[[], MediaDiscoverService],
         douban_factory: Callable[[], DoubanDiscoverService],
+        trakt_factory: Callable[[], object] | None = None,
     ) -> None:
         self._tmdb_factory = tmdb_factory
         self._douban_factory = douban_factory
+        self._trakt_factory = trakt_factory
 
     def list_collections(
         self, media_type: MediaKind, provider: MediaSource
     ) -> list[DiscoveryCollectionView]:
         """列出来源可浏览的片单，顺序就是发现页的产品编排顺序。"""
+        if provider is MediaSource.TRAKT:
+            from movieclaw_api.services.trakt_discover import trakt_collections
+
+            return trakt_collections(media_type)
         service = self._provider(provider)
         layout = service.layout(media_type)
         collections: list[DiscoveryCollectionView] = []
@@ -122,6 +128,7 @@ class TitleDiscoveryService:
         limit: int,
         page: int = 1,
         projection: DiscoverLibraryProjectionService | None = None,
+        owner_id: int = 0,
     ) -> DiscoveryCollectionTitlesView:
         """读取一个片单；白名单校验由 ``list_collections`` 的事实集合完成。"""
         provider, media_type, collection_id = parse_collection_ref(collection_ref)
@@ -135,6 +142,17 @@ class TitleDiscoveryService:
         )
         if descriptor is None:
             raise LookupError("该片单不存在或当前来源未开放浏览")
+        if provider is MediaSource.TRAKT:
+            if self._trakt_factory is None:
+                raise LookupError("该片单不存在或当前来源未开放浏览")
+            return await self._trakt_factory().browse(
+                collection_id,
+                media_type,
+                owner_id=owner_id,
+                limit=limit,
+                page=page,
+                projection=projection,
+            )
 
         service = self._provider(provider)
         total_pages = 1
@@ -287,6 +305,8 @@ class TitleDiscoveryService:
     ) -> DiscoveredTitleDetailsView:
         """按稳定引用读取详情，并把两个来源转换为同一公开结构。"""
         provider, media_type, external_id = parse_title_ref(title_ref)
+        if provider is MediaSource.TRAKT:
+            raise LookupError("这条目没有 TMDB 资料")
         service = self._provider(provider)
         if provider is MediaSource.TMDB:
             assert media_type is not None  # parse_title_ref 已校验
@@ -342,10 +362,10 @@ def parse_collection_ref(value: str) -> tuple[MediaSource, MediaKind, str]:
 
 def make_title_ref(provider: MediaSource, external_id: str, media_type: MediaKind | None) -> str:
     """构造影视条目稳定引用；TMDB 的电影/剧集号段独立，必须携带类型。"""
-    if provider is MediaSource.TMDB:
+    if provider in (MediaSource.TMDB, MediaSource.TRAKT):
         if media_type is None:
             raise ValueError("TMDB 条目缺少 movie/tv 类型，无法构造 title_ref")
-        return f"tmdb:{media_type.value}:{external_id}"
+        return f"{provider.value}:{media_type.value}:{external_id}"
     return f"douban:{external_id}"
 
 
@@ -353,8 +373,12 @@ def parse_title_ref(value: str) -> tuple[MediaSource, MediaKind | None, str]:
     """解析 TMDB 三段式或豆瓣两段式 title_ref。"""
     parts = value.split(":")
     try:
-        if len(parts) == 3 and parts[0] == MediaSource.TMDB.value and parts[2].isdigit():
-            return MediaSource.TMDB, MediaKind(parts[1]), parts[2]
+        if (
+            len(parts) == 3
+            and parts[0] in {MediaSource.TMDB.value, MediaSource.TRAKT.value}
+            and parts[2].isdigit()
+        ):
+            return MediaSource(parts[0]), MediaKind(parts[1]), parts[2]
         if len(parts) == 2 and parts[0] == MediaSource.DOUBAN.value and parts[1]:
             return MediaSource.DOUBAN, None, parts[1]
     except ValueError:
@@ -446,5 +470,10 @@ def get_title_discovery_service() -> TitleDiscoveryService:
         get_douban_media_service,
         get_media_service,
     )
+    from movieclaw_api.services.trakt_discover import TraktDiscoverService
 
-    return TitleDiscoveryService(get_media_service, get_douban_media_service)
+    return TitleDiscoveryService(
+        get_media_service,
+        get_douban_media_service,
+        TraktDiscoverService,
+    )
