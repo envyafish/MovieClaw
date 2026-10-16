@@ -19,7 +19,8 @@ export default async function DiscoverPage({
   const query = await searchParams;
   if (type !== "movie" && type !== "tv") notFound();
   // URL 是发现视角的唯一状态源；未知值安全回退到默认 TMDB 视角。
-  const source: MediaSource = query.source === "douban" ? "douban" : "tmdb";
+  const source: MediaSource =
+    query.source === "douban" || query.source === "trakt" ? query.source : "tmdb";
   const filters = parseDiscoveryFilters(query);
   return (
     <div className="flex h-full flex-col">

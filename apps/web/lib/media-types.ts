@@ -19,7 +19,7 @@ export const LIBRARY_KIND_LABELS: Record<LibraryKind, string> = {
   video: "其他",
   photo: "图片",
 };
-export type MediaSource = "tmdb" | "douban";
+export type MediaSource = "tmdb" | "douban" | "trakt";
 
 /** 发现列表的轻量库存摘要；只用于入库标记，不携带文件详情。 */
 export interface MediaLibraryStatus {
@@ -71,6 +71,10 @@ export interface MediaItem {
   /** hover 专用的紧凑上下文，不进入海报下方的常显元信息。 */
   overlayDetails?: MediaOverlayDetails;
   posterUrl: string;
+  /** 日历或上映日期，有值时卡片用它代替年份。 */
+  note?: string;
+  /** false 时卡片只展示，不进入详情。缺省可点。 */
+  navigable?: boolean;
   /** 仅 Hero 精选项需要的宽幅背景图 */
   backdropUrl?: string;
   /** 有在位文件时的库存摘要；无匹配或旧接口响应时为空。 */
@@ -82,4 +86,6 @@ export interface MediaRowData {
   id: string;
   title: string;
   items: MediaItem[];
+  /** 空行仍要展示的说明，例如未连接 Trakt。 */
+  notice?: { code: string; message: string } | null;
 }

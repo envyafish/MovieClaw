@@ -1,3 +1,4 @@
+import { discoverCardFields } from "@/lib/discover-card";
 import { request } from "@/lib/http";
 import { cachedImageUrl } from "@/lib/image-proxy";
 import type { DiscoveryFilters } from "@/lib/discovery-filters";
@@ -52,6 +53,8 @@ export interface DiscoveredTitleDto {
   overview: string;
   poster_url: string;
   backdrop_url: string | null;
+  note?: string;
+  navigable?: boolean;
   library_status?: MediaLibraryStatusDto | null;
 }
 
@@ -75,6 +78,7 @@ interface DiscoveryCollectionTitlesDto {
   total_pages: number;
   total_results: number;
   has_more: boolean;
+  notice?: { code: string; message: string } | null;
 }
 
 interface DiscoveryFilterOptionsDto {
@@ -217,6 +221,7 @@ export interface DiscoveredCollectionData {
   totalPages: number;
   totalResults: number;
   hasMore: boolean;
+  notice?: { code: string; message: string } | null;
 }
 
 export interface DiscoveryGenre {
@@ -277,6 +282,7 @@ function toLibraryLink(dto: MediaLibraryLinkDto): MediaLibraryLink {
 
 /** 片单与详情中的条目字段完整；空值兜底只覆盖上游偶发缺失，不猜来源身份。 */
 function toItem(dto: DiscoveredTitleDto): MediaItem {
+  const card = discoverCardFields(dto);
   return {
     titleRef: dto.title_ref,
     id: dto.external_id,
@@ -290,8 +296,10 @@ function toItem(dto: DiscoveredTitleDto): MediaItem {
     extent: dto.extent_label,
     badges: [],
     overview: dto.overview,
-    posterUrl: cachedImageUrl(dto.poster_url),
+    posterUrl: card.posterUrl ? cachedImageUrl(card.posterUrl) : "",
     backdropUrl: dto.backdrop_url ? cachedImageUrl(dto.backdrop_url) : undefined,
+    note: card.note,
+    navigable: card.navigable,
     libraryStatus: toLibraryStatus(dto.library_status),
   };
 }
@@ -365,6 +373,7 @@ export async function browseDiscoveryCollection(
     totalPages: dto.total_pages,
     totalResults: dto.total_results,
     hasMore: dto.has_more,
+    notice: dto.notice ?? null,
   };
 }
 
@@ -605,5 +614,6 @@ export function collectionToRow(collection: DiscoveredCollectionData): MediaRowD
     id: collection.collectionRef,
     title: collection.name,
     items: collection.items,
+    notice: collection.notice,
   };
 }

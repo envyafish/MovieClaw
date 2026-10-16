@@ -14,7 +14,7 @@ import type { PosterVisualItem } from "@/components/poster-card";
 import { SubscribeDialog, type SubscribeTarget } from "@/components/subscribe-dialog";
 import { fetchDiscoveredTitleDetails, titleRef } from "@/lib/api/discover";
 import { listSubscriptions, type Subscription } from "@/lib/api/subscriptions";
-import type { MediaType } from "@/lib/media-types";
+import type { MediaSource, MediaType } from "@/lib/media-types";
 import { usePermissions } from "@/lib/permissions";
 
 /**
@@ -51,7 +51,7 @@ interface SubscribeEntryValue {
 /** 订阅状态查询的最小键：来源 + 外部 ID（TMDB 来源还需 type 消除电影/剧集撞号）。 */
 export interface SubscriptionLookupKey {
   id: string;
-  source?: "tmdb" | "douban";
+  source?: MediaSource;
   type?: MediaType;
 }
 
@@ -89,6 +89,7 @@ export function SubscribeEntryProvider({ children }: { children: ReactNode }) {
     async (item: PosterVisualItem, opts?: { upgradeIntent?: boolean }) => {
       if (!canSubscribe) return;
       const source = item.source ?? "tmdb";
+      if (source === "trakt") return;
       const reference = item.titleRef ?? titleRef(source, item.type ?? "movie", item.id);
       let kind = item.type;
       if (!kind && source === "douban") {
@@ -132,6 +133,7 @@ export function SubscribeEntryProvider({ children }: { children: ReactNode }) {
 
   const subscriptionOf = useCallback(
     (key: SubscriptionLookupKey) => {
+      if (key.source === "trakt") return undefined;
       if ((key.source ?? "tmdb") === "douban") return subscriptionIndex.byDouban.get(key.id);
       return key.type === undefined
         ? subscriptionIndex.byTmdb.get(key.id)

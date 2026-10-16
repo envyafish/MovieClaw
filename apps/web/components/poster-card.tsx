@@ -92,7 +92,11 @@ export interface PosterVisualItem {
   title: string;
   rating: number;
   posterUrl: string;
-  source?: "tmdb" | "douban";
+  source?: "tmdb" | "douban" | "trakt";
+  /** 日历或上映日期；有值时元信息行只显示它。 */
+  note?: string;
+  /** false 时卡片不可进入详情。 */
+  navigable?: boolean;
   /** 电影/剧集；豆瓣轻量搜索结果没有该字段，订阅入口点击时补拉详情识别 */
   type?: MediaType;
   year?: number;
@@ -157,6 +161,11 @@ function resolveRibbon(
 export function PosterCard({ item, action, href, revealInfoOnTouch }: PosterCardProps) {
   // 点击整卡（含 hover 信息层）进入该影片的详情页
   const { open } = useMediaDetail();
+  if (item.navigable === false) {
+    return (
+      <PosterCardVisual item={item} action={action} revealInfoOnTouch={revealInfoOnTouch} />
+    );
+  }
   if (href) {
     return (
       <PosterCardVisual
@@ -525,9 +534,15 @@ function PosterCardContent({
         {/* 始终保留一行元信息，避免缺失年份让同一海报墙的卡片高低跳动。
             在库与否不在这里表达——它已由海报左上角的「已入库」斜标承担。 */}
         <p className="text-on-image tnum mt-0.5 flex min-h-4 items-center gap-1.5 truncate text-caption text-[var(--text-muted)]">
-          {!!item.year && <span>{item.year}</span>}
-          {!!item.year && item.extent && <span>·</span>}
-          {item.extent && <span>{item.extent}</span>}
+          {item.note ? (
+            <span>{item.note}</span>
+          ) : (
+            <>
+              {!!item.year && <span>{item.year}</span>}
+              {!!item.year && item.extent && <span>·</span>}
+              {item.extent && <span>{item.extent}</span>}
+            </>
+          )}
         </p>
       </div>
     </>

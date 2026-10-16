@@ -18,6 +18,7 @@ import {
   TvIcon,
 } from "@/components/icons";
 import { MediaRow } from "@/components/media-row";
+import { showCollectionNotice } from "@/lib/discover-card";
 import { DiscoverRegionFooter } from "@/components/discover-region-footer";
 import {
   DISCOVER_MENU_ITEM_CLASS,
@@ -267,7 +268,12 @@ export function DiscoverView({
           })
           .catch((err: unknown) => {
             if (controller.signal.aborted) return;
-            firstError ??= toErrorInfo(err);
+            const info = toErrorInfo(err);
+            if (info.code === "TRAKT_APP_UNAUTHORIZED") {
+              setError(info);
+              return;
+            }
+            firstError ??= info;
             failed += 1;
             setRowsByRef((prev) => ({ ...prev, [section.collectionRef]: "error" }));
             if (failed === pending.length && pending.length === rowSections.length) {
@@ -549,6 +555,15 @@ export function DiscoverView({
           const row = rowsByRef[section.collectionRef];
           // 失败或条目太少（空 items）的行整行收起
           if (row === "error") return null;
+          if (row && showCollectionNotice(row.notice, row.items.length)) {
+            return (
+              <CollectionNotice
+                key={section.collectionRef}
+                title={section.title}
+                notice={row.notice!}
+              />
+            );
+          }
           if (row && row.items.length === 0) return null;
           if (!row) return <RowSkeleton key={section.collectionRef} stub={section} />;
           const href = section.supportsFullListing
@@ -574,6 +589,39 @@ export function DiscoverView({
   return silverFrame(scrollBody);
 }
 
+const DISCOVER_SOURCES = ["tmdb", "douban", "trakt"] as const satisfies readonly MediaSource[];
+
+function discoverSourceLabel(source: MediaSource): string {
+  if (source === "douban") return "豆瓣";
+  if (source === "trakt") return "Trakt";
+  return "TMDB";
+}
+
+function CollectionNotice({
+  title,
+  notice,
+}: {
+  title: string;
+  notice: { code: string; message: string };
+}) {
+  const message =
+    notice.code === "trakt_not_connected" ? (
+      <Link href={"/settings/profile" as Route} className="underline underline-offset-2">
+        {notice.message}
+      </Link>
+    ) : (
+      notice.message
+    );
+  return (
+    <section className="page-inset">
+      <h3 className="text-on-image text-body-lg font-semibold tracking-[-0.01em] text-[var(--text)]">
+        {title}
+      </h3>
+      <p className="mt-2 text-sub text-[var(--text-muted)]">{message}</p>
+    </section>
+  );
+}
+
 /** Netflix 手机顶栏的数据源分段切换，与类型胶囊保持同一规格。 */
 function SourceSwitcher({
   value,
@@ -587,7 +635,7 @@ function SourceSwitcher({
     // 2026-09-20 用户拍板——切换胶囊全站一套材质，Netflix 主题下保持玻璃底，
     // 不随浮层换实底；选中态白系语言原样。
     <div className="flex shrink-0 rounded-full border border-white/10 bg-black/35 p-1 backdrop-blur-xl">
-      {(["tmdb", "douban"] as const).map((source) => (
+      {DISCOVER_SOURCES.map((source) => (
         <button
           key={source}
           type="button"
@@ -599,7 +647,7 @@ function SourceSwitcher({
               : "text-[var(--text-muted)] hover:text-white"
           }`}
         >
-          {source === "tmdb" ? "TMDB" : "豆瓣"}
+          {discoverSourceLabel(source)}
         </button>
       ))}
     </div>
@@ -626,7 +674,7 @@ function DiscoverTitleMenu({
   variant?: "mobile" | "desktop" | "compact";
 }) {
   const typeLabel = mediaType === "tv" ? "剧集" : "电影";
-  const sourceLabel = source === "douban" ? "豆瓣" : "TMDB";
+  const sourceLabel = discoverSourceLabel(source);
   const groupLabel = "px-3 pb-1 pt-1.5 text-caption text-[var(--text-faint)]";
   const check = (
     <DropdownMenu.ItemIndicator className="ml-auto">
@@ -697,6 +745,10 @@ function DiscoverTitleMenu({
             </DropdownMenu.RadioItem>
             <DropdownMenu.RadioItem value="douban" className={DISCOVER_MENU_ITEM_CLASS}>
               豆瓣
+              {check}
+            </DropdownMenu.RadioItem>
+            <DropdownMenu.RadioItem value="trakt" className={DISCOVER_MENU_ITEM_CLASS}>
+              Trakt
               {check}
             </DropdownMenu.RadioItem>
           </DropdownMenu.RadioGroup>
