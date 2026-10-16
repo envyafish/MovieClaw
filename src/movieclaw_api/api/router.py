@@ -34,6 +34,7 @@ from movieclaw_api.api.routes.auth import router as auth_router
 from movieclaw_api.api.routes.channels import router as channels_router
 from movieclaw_api.api.routes.channels_legacy import router as channels_legacy_router
 from movieclaw_api.api.routes.cloud import router as cloud_router
+from movieclaw_api.api.routes.trakt import router as trakt_router
 from movieclaw_api.api.routes.collections import router as collections_router
 from movieclaw_api.api.routes.discover import router as discover_router
 from movieclaw_api.api.routes.discover import search_router as title_search_router
@@ -222,6 +223,8 @@ _ADMIN_ROUTERS = [
     # MovieClaw Cloud 与 App 推送通道：以整台服务器的名义连接云端、管理推送中继
     # 与令牌，与 IM 通道同属管理员（docs/design/cloud-push.md §1）
     cloud_router,
+    # Trakt 应用的 Client ID / Secret 是整台服务器的凭证
+    trakt_router,
     push_admin_router,
 ]
 for _router in _ADMIN_ROUTERS:
