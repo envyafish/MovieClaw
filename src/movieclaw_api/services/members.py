@@ -239,6 +239,9 @@ async def delete_member(session: AsyncSession, member_id: int) -> None:
         .where(Collection.created_by_member_id == member_id)
         .values(created_by_member_id=0)
     )
+    from movieclaw_api.services.trakt_connection import TraktConnectionStore
+
+    await TraktConnectionStore().delete(member_id, session=session)
     await MemberRepository(session).delete(member)
     logger.info(
         "已删除成员账号：%s（id=%d，个人数据已清理，订阅已转由管理员接管）",

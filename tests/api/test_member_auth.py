@@ -492,6 +492,11 @@ _MEMBER_ALLOWLIST = {
     ("GET", "/api/v1/auth/me"),
     ("PUT", "/api/v1/auth/profile"),
     ("PUT", "/api/v1/auth/password"),
+    # Trakt：只操作当前登录用户自己的连接（docs/design/trakt-discover.md §3.2）
+    ("GET", "/api/v1/integrations/trakt/connection"),
+    ("POST", "/api/v1/integrations/trakt/connection"),
+    ("POST", "/api/v1/integrations/trakt/connection/poll"),
+    ("DELETE", "/api/v1/integrations/trakt/connection"),
     ("POST", "/api/v1/auth/avatar"),
     ("GET", "/api/v1/auth/avatar"),
     # 多账号切换（docs/design/account-switching.md）：只操作本浏览器的 Cookie，

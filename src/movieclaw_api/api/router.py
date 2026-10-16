@@ -34,6 +34,7 @@ from movieclaw_api.api.routes.auth import router as auth_router
 from movieclaw_api.api.routes.channels import router as channels_router
 from movieclaw_api.api.routes.channels_legacy import router as channels_legacy_router
 from movieclaw_api.api.routes.cloud import router as cloud_router
+from movieclaw_api.api.routes.trakt import connection_router as trakt_connection_router
 from movieclaw_api.api.routes.trakt import router as trakt_router
 from movieclaw_api.api.routes.collections import router as collections_router
 from movieclaw_api.api.routes.discover import router as discover_router
@@ -153,6 +154,8 @@ _MEMBER_ROUTERS = [
     # 功能开关（docs/design/plugin-page-tiers.md §6）：各端都要知道哪些功能停用了好隐藏入口；
     # 切换在路由级挂 require_admin
     features_router,
+    # Trakt 连接只属于当前登录的人（docs/design/trakt-discover.md §3.2）
+    trakt_connection_router,
 ]
 for _router in _MEMBER_ROUTERS:
     api_router.include_router(_router, dependencies=[Depends(require_login)])
