@@ -27,7 +27,7 @@ export function TraktSettingsSection() {
     request<{ data: TraktAppView }>("/integrations/trakt/app")
       .then((body) => {
         if (cancelled) return;
-        setClientId(body.data.client_id);
+        setClientId((current) => (current.trim() ? current : body.data.client_id));
         setSecretSet(body.data.secret_set);
       })
       .catch((err: unknown) => {

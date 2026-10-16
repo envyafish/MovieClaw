@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -51,12 +52,12 @@ class TraktClient:
         client_secret: str = "",
         *,
         transport: httpx.BaseTransport | None = None,
-        base_url: str = _DEFAULT_BASE_URL,
+        base_url: str | None = None,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._http = httpx.AsyncClient(
-            base_url=base_url,
+            base_url=base_url or os.environ.get("TRAKT_API_BASE_URL", _DEFAULT_BASE_URL),
             transport=transport,
             headers={
                 "trakt-api-key": client_id,
@@ -98,7 +99,8 @@ class TraktClient:
             "/oauth/device/token",
             {"code": code, "client_id": self._client_id, "client_secret": self._client_secret},
         )
-        if response.status_code == 400 and _error_code(response) in {"authorization_pending", "slow_down"}:
+        pending = _error_code(response) in {"authorization_pending", "slow_down"}
+        if response.status_code == 400 and pending:
             raise TraktPending("等待用户在 Trakt 上授权")
         body, _ = _decode(response)
         return _token(body)
