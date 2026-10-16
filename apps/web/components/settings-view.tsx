@@ -36,6 +36,8 @@ import { SubscriptionSettingsSection } from "@/components/subscription-settings-
 import { SystemLogsSection } from "@/components/system-logs-section";
 import { TranscodeCacheToggleRow } from "@/components/transcode-cache-toggle-section";
 import { TrickplayToggleRow } from "@/components/trickplay-toggle-section";
+import { TraktConnectionCard } from "@/components/trakt-connection-card";
+import { TraktSettingsSection } from "@/components/trakt-settings-section";
 import { WebhookSection } from "@/components/webhook-section";
 import { GlassPanel } from "@/components/glass-panel";
 import {
@@ -258,6 +260,8 @@ export function SettingsPanel({ active, item }: SettingsPanelProps) {
           <AiSettingsSection />
         ) : section.id === "im-push" ? (
           <ImPushSection />
+        ) : section.id === "trakt" ? (
+          <TraktSettingsSection />
         ) : section.id === "app-push" ? (
           <AppPushSection />
         ) : section.id === "members" ? (
@@ -307,6 +311,8 @@ function ProfileSection() {
           </SettingsRow>
         </SettingsList>
       </SettingsSection>
+
+      <TraktConnectionCard />
 
       <SettingsSection title="安全">
         <ChangePasswordCard />

@@ -201,6 +201,12 @@ export const settingsSectionGroups: SettingsSectionGroup[] = [
     label: "通知与集成",
     items: [
       {
+        id: "trakt",
+        label: "Trakt",
+        description: "连接 Trakt，在发现页看追剧日历、推荐和榜单",
+        icon: GlobeIcon,
+      },
+      {
         id: "app-push",
         label: "App 推送",
         description: "给 iPhone、iPad 上的 MovieClaw App 发通知",
