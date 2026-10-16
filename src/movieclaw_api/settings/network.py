@@ -36,6 +36,7 @@ BUILTIN_EGRESS_SERVICES: list[dict[str, str]] = [
         "description": "Fanart.tv 图片来源：接口 webservice.fanart.tv 与图床 assets.fanart.tv",
     },
     {"id": "douban", "label": "豆瓣", "description": "豆瓣榜单与搜索（国内网络通常可直连）"},
+    {"id": "trakt", "label": "Trakt", "description": "Trakt 榜单、日历与推荐（api.trakt.tv）"},
     {"id": "llm", "label": "AI 模型", "description": "大语言模型供应商接口"},
     # 默认不进 proxy_services。海外接口常常要代理，但由用户在「设置 → 网络」里自己打开。
     {
