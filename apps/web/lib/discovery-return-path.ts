@@ -4,6 +4,7 @@ import type { MediaSource, MediaType } from "./media-types";
 
 const TMDB_DISCOVERY_PATH = /^\/media\/(?:movie|tv)\/\d+$/;
 const DOUBAN_DISCOVERY_PATH = /^\/media\/douban\/[^/?#\s]+$/;
+const TRAKT_DISCOVERY_PATH = /^\/media\/trakt\/(?:movie|tv)\/\d+$/;
 
 /** 构造发现详情的稳定站内路径，供媒体库条目页安全返回。 */
 export function buildDiscoveryReturnPath(
@@ -11,7 +12,9 @@ export function buildDiscoveryReturnPath(
   type: MediaType,
   id: string,
 ): Route {
-  return (source === "douban" ? `/media/douban/${id}` : `/media/${type}/${id}`) as Route;
+  if (source === "douban") return `/media/douban/${id}` as Route;
+  if (source === "trakt") return `/media/trakt/${type}/${id}` as Route;
+  return `/media/${type}/${id}` as Route;
 }
 
 /**
@@ -22,6 +25,9 @@ export function buildDiscoveryReturnPath(
  */
 export function getDiscoveryReturnPath(returnTo?: string): Route | null {
   if (!returnTo) return null;
-  const match = TMDB_DISCOVERY_PATH.exec(returnTo) ?? DOUBAN_DISCOVERY_PATH.exec(returnTo);
+  const match =
+    TMDB_DISCOVERY_PATH.exec(returnTo) ??
+    DOUBAN_DISCOVERY_PATH.exec(returnTo) ??
+    TRAKT_DISCOVERY_PATH.exec(returnTo);
   return match?.[0] === returnTo ? (returnTo as Route) : null;
 }

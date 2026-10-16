@@ -10,6 +10,7 @@ test("构造 TMDB 与豆瓣发现详情返回路径", () => {
   assert.equal(buildDiscoveryReturnPath("tmdb", "movie", "42"), "/media/movie/42");
   assert.equal(buildDiscoveryReturnPath("tmdb", "tv", "7"), "/media/tv/7");
   assert.equal(buildDiscoveryReturnPath("douban", "movie", "db-42"), "/media/douban/db-42");
+  assert.equal(buildDiscoveryReturnPath("trakt", "tv", "9"), "/media/trakt/tv/9");
 });
 
 test("只接纳已知发现详情路由", () => {
@@ -18,6 +19,8 @@ test("只接纳已知发现详情路由", () => {
     "/media/tv/7",
     "/media/douban/1292052",
     "/media/douban/db-42",
+    "/media/trakt/movie/9",
+    "/media/trakt/tv/9",
   ]) {
     assert.equal(getDiscoveryReturnPath(path), path);
   }

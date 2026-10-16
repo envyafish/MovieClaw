@@ -53,6 +53,8 @@ export interface SubscriptionLookupKey {
   id: string;
   source?: MediaSource;
   type?: MediaType;
+  /** Trakt 卡片上的 TMDB 编号。订阅记在 TMDB 锚上，用它才能对上「已订阅」。 */
+  tmdbId?: number;
 }
 
 const SubscribeEntryContext = createContext<SubscribeEntryValue | null>(null);
@@ -89,7 +91,6 @@ export function SubscribeEntryProvider({ children }: { children: ReactNode }) {
     async (item: PosterVisualItem, opts?: { upgradeIntent?: boolean }) => {
       if (!canSubscribe) return;
       const source = item.source ?? "tmdb";
-      if (source === "trakt") return;
       const reference = item.titleRef ?? titleRef(source, item.type ?? "movie", item.id);
       let kind = item.type;
       if (!kind && source === "douban") {
@@ -113,6 +114,7 @@ export function SubscribeEntryProvider({ children }: { children: ReactNode }) {
   // 匹配口径（详情页与海报卡片共用）：
   //   - 豆瓣来源：按 douban_id 匹配（订阅从 TMDB 入口建立且未关联豆瓣 ID 时
   //     匹配不到，属已知限制——两边没有可靠的对齐键，不按标题猜）；
+  //   - Trakt 来源：订阅锚是 TMDB。卡片带了 tmdbId 就按它匹配，否则对不上；
   //   - TMDB 来源：按 tmdb_id 匹配；电影和剧集的 TMDB ID 是两个独立号段，
   //     卡片带 type 时用它消歧，缺失时（历史快照数据）仅按 ID 匹配。
   const subscriptionIndex = useMemo(() => {
@@ -133,7 +135,13 @@ export function SubscribeEntryProvider({ children }: { children: ReactNode }) {
 
   const subscriptionOf = useCallback(
     (key: SubscriptionLookupKey) => {
-      if (key.source === "trakt") return undefined;
+      if (key.source === "trakt") {
+        if (key.tmdbId == null) return undefined;
+        const anchor = String(key.tmdbId);
+        return key.type === undefined
+          ? subscriptionIndex.byTmdb.get(anchor)
+          : subscriptionIndex.byTmdbTyped.get(`${anchor}:${key.type}`);
+      }
       if ((key.source ?? "tmdb") === "douban") return subscriptionIndex.byDouban.get(key.id);
       return key.type === undefined
         ? subscriptionIndex.byTmdb.get(key.id)

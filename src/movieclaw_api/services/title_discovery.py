@@ -306,7 +306,12 @@ class TitleDiscoveryService:
         """按稳定引用读取详情，并把两个来源转换为同一公开结构。"""
         provider, media_type, external_id = parse_title_ref(title_ref)
         if provider is MediaSource.TRAKT:
-            raise LookupError("这条目没有 TMDB 资料")
+            if self._trakt_factory is None or media_type is None:
+                raise LookupError("找不到这个 Trakt 条目")
+            from movieclaw_api.services.trakt_discover import require_trakt_app
+
+            await require_trakt_app()
+            return await self._trakt_factory().details(media_type, int(external_id))
         service = self._provider(provider)
         if provider is MediaSource.TMDB:
             assert media_type is not None  # parse_title_ref 已校验

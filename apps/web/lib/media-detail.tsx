@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import type { Route } from "next";
 
-import type { MediaItem, MediaSource } from "@/lib/media-types";
+import { buildDiscoveryReturnPath } from "@/lib/discovery-return-path";
+import type { MediaItem, MediaSource, MediaType } from "@/lib/media-types";
 
 /**
  * 影片详情的全站入口：详情是真实路由 /media/[type]/[id]，
@@ -17,8 +17,17 @@ import type { MediaItem, MediaSource } from "@/lib/media-types";
  */
 const seedCache = new Map<string, MediaItem>();
 
-export function getMediaSeed(source: MediaSource, id: string): MediaItem | undefined {
-  return seedCache.get(`${source}:${id}`);
+function seedKey(source: MediaSource, id: string, type?: string): string {
+  // Trakt 的电影和剧集共用一套数字编号，缓存键必须带上类型。
+  return source === "trakt" ? `${source}:${type ?? ""}:${id}` : `${source}:${id}`;
+}
+
+export function getMediaSeed(
+  source: MediaSource,
+  id: string,
+  type?: string,
+): MediaItem | undefined {
+  return seedCache.get(seedKey(source, id, type));
 }
 
 export interface MediaDetailNav {
@@ -36,13 +45,9 @@ export function useMediaDetail(): MediaDetailNav {
           seedCache.clear();
         }
         const source = item.source ?? "tmdb";
-        seedCache.set(`${source}:${item.id}`, item);
-        router.push(
-          source === "douban"
-            ? (`/media/douban/${item.id}` as Route)
-            : (`/media/${item.type}/${item.id}` as Route),
-          { scroll: false },
-        );
+        seedCache.set(seedKey(source, item.id, item.type), item);
+        const type = (item.type ?? "movie") as MediaType;
+        router.push(buildDiscoveryReturnPath(source, type, item.id), { scroll: false });
       },
     }),
     [router],

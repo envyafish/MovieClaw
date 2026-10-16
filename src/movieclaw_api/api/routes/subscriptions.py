@@ -19,6 +19,7 @@ from movieclaw_api.exceptions import (
     ForbiddenException,
     NotFoundException,
     UpstreamServiceException,
+    UpstreamUnreachableException,
 )
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.subscription import (
@@ -88,6 +89,7 @@ from movieclaw_matcher.smart import SmartPreferences
 from movieclaw_media import DoubanError, TmdbError
 from movieclaw_media.library import ResolveStatus
 from movieclaw_media.models import MediaKind, MediaSource
+from movieclaw_media.trakt import TraktError, TraktNetworkError
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 logger = logging.getLogger("movieclaw_api.routes.subscriptions")
@@ -369,20 +371,43 @@ async def _preview_title_ref(
         details = await get_title_discovery_service().get_title_details(title_ref)
         kind = details.title.media_type
         if kind is None:
-            raise BadRequestException("豆瓣条目缺少电影/剧集类型，暂时无法创建订阅")
+            raise BadRequestException("条目缺少电影/剧集类型，暂时无法创建订阅")
+        # Trakt 大多数条目自带 TMDB 编号，直接锚定，不再按标题搜索。
+        # 没有编号时才走和豆瓣相同的标题/年份/首播日期收敛，并且不把 Trakt 编号写成豆瓣编号。
+        if provider is MediaSource.TRAKT and details.title.tmdb_id:
+            return await _prepare_resolved_target(
+                kind=kind,
+                tmdb_id=details.title.tmdb_id,
+                douban_id=None,
+                service=service,
+                session=session,
+            )
         library = MediaLibraryService(session, get_tmdb_client())
+        aliases = list(details.metadata.aliases)
+        if provider is MediaSource.TRAKT and details.title.original_title:
+            aliases = [details.title.original_title, *aliases]
         # 别名与首播日期是收敛证据：豆瓣把剧集按季拆条目，只有靠它们才能把
         # 「中餐厅 第十季」对上 TMDB 的《中餐厅》S10。详情本来就已拉回，不额外请求
         resolution, item = await library.resolve_douban(
             kind,
             details.title.title,
             year=details.title.release_year,
-            douban_id=external_id,
-            aliases=details.metadata.aliases,
+            douban_id=None if provider is MediaSource.TRAKT else external_id,
+            aliases=aliases,
             released=details.metadata.released,
         )
+    except LookupError as exc:
+        raise NotFoundException(str(exc)) from exc
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
+    except TraktNetworkError as exc:
+        raise UpstreamUnreachableException(
+            str(exc),
+            service="trakt",
+            hint="到「设置 → 网络」为 Trakt 配置代理，保存后用连通性测试验证",
+        ) from exc
+    except TraktError as exc:
+        raise UpstreamServiceException(str(exc)) from exc
     except (TmdbError, DoubanError) as exc:
         raise UpstreamServiceException(str(exc)) from exc
 
@@ -400,7 +425,7 @@ async def _preview_title_ref(
     return await _prepare_resolved_target(
         kind=kind,
         tmdb_id=item.tmdb_id,
-        douban_id=external_id,
+        douban_id=None if provider is MediaSource.TRAKT else external_id,
         suggested_season=resolution.suggested_season,
         service=service,
         session=session,
@@ -451,7 +476,7 @@ async def create_subscription(
         raise AppException(
             status_code=409,
             code="SUBSCRIPTION_TARGET_AMBIGUOUS",
-            message="该豆瓣条目对应多个可能的 TMDB 条目，请选择候选 title_ref 后重试",
+            message="该条目对应多个可能的 TMDB 条目，请选择候选 title_ref 后重试",
             details=[candidate.model_dump(mode="json") for candidate in prepared.candidates],
         )
     assert prepared.media is not None

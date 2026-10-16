@@ -35,6 +35,7 @@ from movieclaw_api.schemas.discover import (
     DiscoveryTitlePageView,
     TitleSearchPayload,
     TitleSearchView,
+    TraktShowCalendarView,
 )
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.auth import Principal
@@ -295,7 +296,7 @@ async def get_discovered_title_details(
         raise BadRequestException(str(exc)) from exc
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
-    except (TmdbError, DoubanError) as exc:
+    except (TmdbError, DoubanError, TraktError) as exc:
         raise _translate(exc) from exc
     return ok(result)
 
@@ -316,6 +317,27 @@ async def get_discovered_person_details(
     try:
         result = await service.get_person_details(tmdb_person_id, projection=projection)
     except TmdbError as exc:
+        raise _translate(exc) from exc
+    return ok(result)
+
+
+@ui_router.get(
+    "/tv/trakt-calendar",
+    response_model=ApiResponse[TraktShowCalendarView],
+    summary="追剧日历完整日程",
+    operation_id="ui.discovery.trakt-calendar",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def get_trakt_show_calendar(
+    principal: Principal = Depends(require_login),
+) -> ApiResponse[TraktShowCalendarView]:
+    """未来 30 天的追剧安排，按播出日分组，横图给完整日历页。"""
+    from movieclaw_api.services.trakt_discover import TraktDiscoverService, require_trakt_app
+
+    await require_trakt_app()
+    try:
+        result = await TraktDiscoverService().show_calendar(principal.owner_id)
+    except TraktError as exc:
         raise _translate(exc) from exc
     return ok(result)
 

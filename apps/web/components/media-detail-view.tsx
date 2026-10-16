@@ -104,12 +104,17 @@ export function MediaDetailView({
     subscriptionOf,
     refresh: refreshSubscriptions,
   } = useSubscribeEntry();
-  const sub = subscriptionOf({ id, source, type: type ?? "movie" });
   // 订阅弹层的打开参数；null = 关闭
   const [subscribeTarget, setSubscribeTarget] = useState<SubscribeTarget | null>(null);
   // 站内点卡片跳转时预存的列表字段（标题/海报/简介），用于首屏零白屏；
   // 硬刷新 / 分享链接直达时为空，此时全靠 Discover 详情接口拉取。
-  const listItem = getMediaSeed(source, id);
+  const listItem = getMediaSeed(source, id, type);
+  const sub = subscriptionOf({
+    id,
+    source,
+    type: type ?? "movie",
+    tmdbId: detail?.item.tmdbId ?? listItem?.tmdbId,
+  });
   const fallbackType = listItem?.type ?? type ?? "movie";
   const navFallback = {
     label: "发现",
@@ -672,7 +677,10 @@ export function MediaDetailView({
               label="TMDB"
             />
           )}
-          {info?.sourceUrl && (
+          {source === "trakt" && info?.sourceUrl && (
+            <SourceLink href={info.sourceUrl} label="Trakt" />
+          )}
+          {source === "douban" && info?.sourceUrl && (
             <SourceLink href={doubanAppHref ?? info.sourceUrl} label="豆瓣" />
           )}
         </nav>

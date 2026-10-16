@@ -13,6 +13,7 @@ import { PosterImage } from "@/components/poster-image";
 import { useSubscribeEntry } from "@/components/subscribe-entry";
 import { subscriptionCollectionMeta, subscriptionRibbon } from "@/lib/subscription-ui";
 import { parseMediaCardsArgs, type MediaCardGroup, type MediaCardSpec } from "@/lib/agent-media-cards";
+import { buildDiscoveryReturnPath } from "@/lib/discovery-return-path";
 import type { AgentProcessItem, AgentTurnSegment } from "@/lib/agent-conversations";
 import { fetchDiscoveredTitleDetails } from "@/lib/api/discover";
 import {
@@ -215,9 +216,7 @@ function TitlePosterCardBody({ item }: { item: MediaItem }) {
       ? { ...item, ribbon: "已订阅", ribbonVariant: "compact-left", ribbonTone: "subscribed" }
       : item;
   }, [item, subscriptionOf]);
-  const href = (
-    item.source === "douban" ? `/media/douban/${item.id}` : `/media/${item.type}/${item.id}`
-  ) as Route;
+  const href = buildDiscoveryReturnPath(item.source ?? "tmdb", item.type ?? "movie", item.id);
   return <PosterCardVisual item={visual} href={href} action="subscribe" revealInfoOnTouch />;
 }
 

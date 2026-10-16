@@ -378,3 +378,113 @@ def test_removal_preview_reports_nothing_to_clean_for_fresh_subscription(
     )
     assert deleted.status_code == 200, deleted.text
     assert deleted.json()["data"]["cleanup_job_id"] is None
+
+
+def _trakt_details(*, tmdb_id: int | None, title: str = "野良神") -> object:
+    from movieclaw_api.schemas.discover import (
+        DiscoveredTitleDetailsView,
+        DiscoveredTitleMetadata,
+        DiscoveredTitleView,
+    )
+    from movieclaw_media.models import MediaKind, MediaSource
+
+    return DiscoveredTitleDetailsView(
+        title=DiscoveredTitleView(
+            title_ref="trakt:movie:7",
+            provider=MediaSource.TRAKT,
+            external_id="7",
+            media_type=MediaKind.MOVIE,
+            title=title,
+            original_title="Noragami",
+            release_year=2014,
+            poster_url="",
+            tmdb_id=tmdb_id,
+        ),
+        metadata=DiscoveredTitleMetadata(released="2014-01-01"),
+    )
+
+
+def test_trakt_subscription_uses_linked_tmdb_id(client: TestClient, monkeypatch) -> None:
+    class _Discovery:
+        async def get_title_details(self, title_ref: str, **_kwargs: object) -> object:
+            assert title_ref == "trakt:movie:7"
+            return _trakt_details(tmdb_id=100)
+
+    monkeypatch.setattr(
+        "movieclaw_api.api.routes.subscriptions.get_title_discovery_service",
+        lambda: _Discovery(),
+    )
+    preview = client.post(
+        "/api/v1/subscriptions/title-preview",
+        json={"title_ref": "trakt:movie:7"},
+    )
+    assert preview.status_code == 200, preview.text
+    media = preview.json()["data"]["media"]
+    assert media["tmdb_id"] == 100
+    assert media["douban_id"] is None
+
+    created = client.post("/api/v1/subscriptions", json={"title_ref": "trakt:movie:7"})
+    assert created.status_code == 200, created.text
+    saved = created.json()["data"]["subscription"]["media"]
+    assert saved["tmdb_id"] == 100
+    assert saved["douban_id"] is None
+
+
+def test_trakt_subscription_searches_when_tmdb_id_is_missing(
+    client: TestClient, monkeypatch
+) -> None:
+    from movieclaw_api.api.routes import subscriptions as routes
+
+    queries: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/3/search/movie":
+            queries.append(request.url.params["query"])
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "id": 100,
+                            "title": "冷门片",
+                            "original_title": "Noragami",
+                            "release_date": "2014-01-01",
+                        }
+                    ]
+                },
+            )
+        if request.url.path == "/3/movie/100":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 100,
+                    "title": "冷门片",
+                    "original_title": "Noragami",
+                    "release_date": "2014-01-01",
+                    "status": "Released",
+                    "external_ids": {},
+                    "alternative_titles": {"titles": []},
+                    "translations": {"translations": []},
+                },
+            )
+        return httpx.Response(404, json={})
+
+    class _Discovery:
+        async def get_title_details(self, _title_ref: str, **_kwargs: object) -> object:
+            return _trakt_details(tmdb_id=None, title="冷门片")
+
+    monkeypatch.setattr(
+        routes,
+        "get_tmdb_client",
+        lambda: TmdbClient(_KEY, transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(routes, "get_title_discovery_service", lambda: _Discovery())
+    preview = client.post(
+        "/api/v1/subscriptions/title-preview",
+        json={"title_ref": "trakt:movie:7"},
+    )
+    assert preview.status_code == 200, preview.text
+    media = preview.json()["data"]["media"]
+    assert media["tmdb_id"] == 100
+    assert media["douban_id"] is None
+    assert queries == ["冷门片"]

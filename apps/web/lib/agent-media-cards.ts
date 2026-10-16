@@ -50,8 +50,8 @@ export interface MediaCardGroup {
 
 const COMPONENTS: ReadonlySet<string> = new Set(["library", "title", "library_item", "subscription"]);
 
-/** 与后端 parse_title_ref 同一口径：tmdb 三段式或豆瓣两段式。 */
-const TITLE_REF = /^(tmdb:(movie|tv):\d+|douban:[^:/\s]+)$/;
+/** 与后端 parse_title_ref 同一口径：tmdb / trakt 三段式或豆瓣两段式。 */
+const TITLE_REF = /^(tmdb:(movie|tv):\d+|trakt:(movie|tv):\d+|douban:[^:/\s]+)$/;
 
 /** 判断一个工具调用是否由本渲染器负责（任何已知版本）。 */
 export function isMediaCardsTool(name: string): boolean {

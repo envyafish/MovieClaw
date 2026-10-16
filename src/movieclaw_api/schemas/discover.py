@@ -93,6 +93,10 @@ class DiscoveredTitleView(BaseModel):
     backdrop_url: str | None = None
     note: str = Field(default="", description="海报标题下的备注；为空时前端显示年份")
     navigable: bool = Field(default=True, description="能否点进详情")
+    tmdb_id: int | None = Field(
+        default=None,
+        description="这条来源自己带的 TMDB 编号；订阅据此直接锚定，没有时为空",
+    )
     library_status: MediaLibraryStatus | None = Field(
         default=None, description="本地在位库存摘要；未匹配到本地条目时为空"
     )
@@ -103,6 +107,37 @@ class DiscoveryCollectionNotice(BaseModel):
 
     code: str
     message: str
+
+
+class TraktCalendarEpisodeView(BaseModel):
+    """追剧日历完整页里的一集。"""
+
+    title_ref: str
+    show_title: str
+    episode_title: str
+    season: int
+    number: int
+    code: str
+    aired_time: str
+    landscape_url: str
+    network: str = ""
+    overview: str = ""
+    runtime: int | None = None
+
+
+class TraktCalendarDayView(BaseModel):
+    """同一天播出的剧集。"""
+
+    date: str
+    label: str
+    episodes: list[TraktCalendarEpisodeView]
+
+
+class TraktShowCalendarView(BaseModel):
+    """未来 30 天的追剧日历，按播出日分组。"""
+
+    days: list[TraktCalendarDayView]
+    notice: DiscoveryCollectionNotice | None = None
 
 
 class DiscoveryCollectionTitlesView(BaseModel):

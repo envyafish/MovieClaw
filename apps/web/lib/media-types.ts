@@ -48,6 +48,8 @@ export interface MediaItem {
   id: string;
   /** 来源与 id 共同构成媒体条目的稳定身份 */
   source?: MediaSource;
+  /** Trakt 条目自带的 TMDB 编号；用来对上已有订阅。其他来源不填。 */
+  tmdbId?: number;
   type: MediaType;
   /** 主图宽高比；缺省 2:3。媒体库里本地抓帧的缩略图是 16:9（见 LibraryItem.primary_aspect） */
   aspect?: number;

@@ -56,6 +56,7 @@ export interface DiscoveredTitleDto {
   note?: string;
   navigable?: boolean;
   library_status?: MediaLibraryStatusDto | null;
+  tmdb_id?: number | null;
 }
 
 interface DiscoveryCollectionDto {
@@ -287,6 +288,7 @@ function toItem(dto: DiscoveredTitleDto): MediaItem {
     titleRef: dto.title_ref,
     id: dto.external_id,
     source: dto.provider,
+    tmdbId: dto.tmdb_id ?? undefined,
     type: dto.media_type ?? "movie",
     title: dto.title,
     originalTitle: dto.original_title,
@@ -377,6 +379,79 @@ export async function browseDiscoveryCollection(
   };
 }
 
+export interface TraktCalendarEpisode {
+  titleRef: string;
+  showTitle: string;
+  episodeTitle: string;
+  season: number;
+  number: number;
+  code: string;
+  airedTime: string;
+  landscapeUrl: string;
+  network: string;
+  overview: string;
+  runtime: number | null;
+}
+
+export interface TraktCalendarDay {
+  date: string;
+  label: string;
+  episodes: TraktCalendarEpisode[];
+}
+
+interface TraktCalendarEpisodeDto {
+  title_ref: string;
+  show_title: string;
+  episode_title: string;
+  season: number;
+  number: number;
+  code: string;
+  aired_time: string;
+  landscape_url: string;
+  network: string;
+  overview: string;
+  runtime: number | null;
+}
+
+interface TraktShowCalendarDto {
+  days: Array<{
+    date: string;
+    label: string;
+    episodes: TraktCalendarEpisodeDto[];
+  }>;
+  notice: { code: string; message: string } | null;
+}
+
+/** 追剧日历完整页：未来 30 天，按播出日分组。 */
+export async function fetchTraktShowCalendar(init?: RequestInit): Promise<{
+  days: TraktCalendarDay[];
+  notice: { code: string; message: string } | null;
+}> {
+  const dto = await unwrap(
+    request<ApiEnvelope<TraktShowCalendarDto>>("/ui/discovery/tv/trakt-calendar", init),
+  );
+  return {
+    days: dto.days.map((day) => ({
+      date: day.date,
+      label: day.label,
+      episodes: day.episodes.map((episode) => ({
+        titleRef: episode.title_ref,
+        showTitle: episode.show_title,
+        episodeTitle: episode.episode_title,
+        season: episode.season,
+        number: episode.number,
+        code: episode.code,
+        airedTime: episode.aired_time,
+        landscapeUrl: episode.landscape_url ? cachedImageUrl(episode.landscape_url) : "",
+        network: episode.network,
+        overview: episode.overview,
+        runtime: episode.runtime,
+      })),
+    })),
+    notice: dto.notice,
+  };
+}
+
 export async function fetchDiscoveryGenres(
   mediaType: MediaType,
   init?: RequestInit,
@@ -432,7 +507,9 @@ export function toSearchItem(item: MediaSearchItemDto): MediaSearchItem {
 
 /** 从旧页面路由参数构造稳定引用；新的接口调用只消费此引用。 */
 export function titleRef(source: MediaSource, type: MediaType, id: string): string {
-  return source === "douban" ? `douban:${id}` : `tmdb:${type}:${id}`;
+  if (source === "douban") return `douban:${id}`;
+  if (source === "trakt") return `trakt:${type}:${id}`;
+  return `tmdb:${type}:${id}`;
 }
 
 /** 把稳定片单引用转换为通用「看全部」页面地址。 */

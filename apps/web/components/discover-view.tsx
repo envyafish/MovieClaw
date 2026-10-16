@@ -566,15 +566,20 @@ export function DiscoverView({
           }
           if (row && row.items.length === 0) return null;
           if (!row) return <RowSkeleton key={section.collectionRef} stub={section} />;
-          const href = section.supportsFullListing
-            ? collectionHref(section.collectionRef)
-            : undefined;
+          const fullCalendar =
+            section.collectionRef === "trakt:tv:calendar"
+              ? ("/discover/tv/calendar" as Route)
+              : undefined;
+          const href =
+            fullCalendar ??
+            (section.supportsFullListing ? collectionHref(section.collectionRef) : undefined);
           const moreHref = href as Route | undefined;
           return (
             <MediaRow
               key={row.id}
-              row={moreHref ? { ...row, items: row.items.slice(0, 10) } : row}
+              row={moreHref && !fullCalendar ? { ...row, items: row.items.slice(0, 10) } : row}
               moreHref={moreHref}
+              moreLabel={fullCalendar ? "查看完整日历" : undefined}
             />
           );
         })}

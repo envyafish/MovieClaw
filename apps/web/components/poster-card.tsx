@@ -93,6 +93,8 @@ export interface PosterVisualItem {
   rating: number;
   posterUrl: string;
   source?: "tmdb" | "douban" | "trakt";
+  /** Trakt 条目自带的 TMDB 编号，用来判断这张海报是不是已经订阅过。 */
+  tmdbId?: number;
   /** 日历或上映日期；有值时元信息行只显示它。 */
   note?: string;
   /** false 时卡片不可进入详情。 */
