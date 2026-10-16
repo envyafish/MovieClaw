@@ -43,7 +43,12 @@ def test_calendar_notes() -> None:
 
 def test_movie_calendar_and_duplicate_episodes() -> None:
     movies = parse_calendar(
-        [{"released": "2026-10-18", "movie": {"title": "Dune", "year": 2026, "ids": {"trakt": 1, "tmdb": 99}}}],
+        [
+            {
+                "released": "2026-10-18",
+                "movie": {"title": "Dune", "year": 2026, "ids": {"trakt": 1, "tmdb": 99}},
+            }
+        ],
         MediaKind.MOVIE,
         tz=SHANGHAI,
     )

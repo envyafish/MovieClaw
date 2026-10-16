@@ -549,6 +549,8 @@ _MEMBER_ALLOWLIST = {
     ("PUT", "/api/v1/ui/preferences"),
     # 发现页 / 详情 / 演职员 / 图片：纯浏览面
     ("GET", "/api/v1/ui/discovery/{media_type}"),
+    # 追剧日历完整页：和发现页同一浏览面，成员看自己的 Trakt 日程
+    ("GET", "/api/v1/ui/discovery/tv/trakt-calendar"),
     ("GET", "/api/v1/discover/collections"),
     ("GET", "/api/v1/discover/collections/{collection_ref}/titles"),
     ("GET", "/api/v1/discover/filters"),

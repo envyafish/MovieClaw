@@ -1,0 +1,4 @@
+# Gradle 构建缓存与编译输出
+.gradle/
+build/
+bin/

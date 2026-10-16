@@ -313,7 +313,7 @@ def _public_path(collection_id: str, media_type: MediaKind) -> str:
 
 
 def _with_images(params: dict | None) -> dict:
-    merged = {"extended": "full"}
+    merged = {"extended": "full,images"}
     if params:
         merged.update(params)
     return merged
@@ -458,14 +458,17 @@ async def _load_detail(kind: MediaKind, trakt_id: int) -> TraktDetail:
     group = "movies" if kind is MediaKind.MOVIE else "shows"
     client = await _client()
     try:
-        body, _headers = await client.get_json(f"/{group}/{trakt_id}", params={"extended": "full"})
+        body, _headers = await client.get_json(
+            f"/{group}/{trakt_id}",
+            params={"extended": "full,images"},
+        )
     except TraktError as exc:
         if str(exc).endswith("404"):
             raise LookupError("找不到这个 Trakt 条目") from exc
         raise
     translation, people, videos = await asyncio.gather(
         _optional_json(client, f"/{group}/{trakt_id}/translations/zh"),
-        _optional_json(client, f"/{group}/{trakt_id}/people", params={"extended": "full"}),
+        _optional_json(client, f"/{group}/{trakt_id}/people", params={"extended": "full,images"}),
         _videos(client, kind, trakt_id),
     )
     detail = parse_detail(body, kind, translation=translation, people=people, videos=videos)

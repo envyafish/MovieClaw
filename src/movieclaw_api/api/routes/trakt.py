@@ -117,7 +117,7 @@ async def poll_own_connection(
     response_model=ApiResponse[TraktConnectionView],
     summary="断开当前用户的 Trakt",
     operation_id="integrations.trakt.connection.delete",
-    openapi_extra=_HIDDEN,
+    openapi_extra={**_HIDDEN, "x-cli-dangerous": "confirm"},
 )
 async def delete_own_connection(
     principal: Principal = Depends(require_login),

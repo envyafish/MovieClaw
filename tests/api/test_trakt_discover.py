@@ -218,7 +218,7 @@ async def test_show_calendar_lists_the_whole_window(client: TestClient) -> None:
     assert any(
         path.startswith("/calendars/my/shows/")
         and path.endswith("/30")
-        and params == {"extended": "full"}
+        and params == {"extended": "full,images"}
         for path, params in client.fake.calls
     )
 
@@ -292,7 +292,7 @@ async def test_playback_row_shows_the_paused_episode(client: TestClient) -> None
     assert data["titles"][0]["title_ref"] == "trakt:tv:7"
     assert data["titles"][0]["note"] == "S01E02 · 看到 40%"
     assert data["titles"][0]["tmdb_id"] == 64710
-    assert ("/sync/playback/episodes", {"extended": "full"}) in client.fake.calls
+    assert ("/sync/playback/episodes", {"extended": "full,images"}) in client.fake.calls
 
 
 def test_box_office_has_no_next_page_and_trending_does(client: TestClient) -> None:
@@ -306,7 +306,9 @@ def test_box_office_has_no_next_page_and_trending_does(client: TestClient) -> No
     assert by_id["boxoffice"]["supports_full_listing"] is False
     assert by_id["trending"]["supports_full_listing"] is True
     client.get("/api/v1/discover/collections/trakt:movie:popular/titles", params={"page": 2})
-    assert ("/movies/popular", {"extended": "full", "page": 2, "limit": 20}) in client.fake.calls
+    assert ("/movies/popular", {"extended": "full,images", "page": 2, "limit": 20}) in (
+        client.fake.calls
+    )
 
 
 async def test_rate_limit_does_not_drop_the_token(client: TestClient) -> None:

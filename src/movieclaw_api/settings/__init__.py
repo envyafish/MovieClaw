@@ -60,13 +60,13 @@ from movieclaw_api.settings.schemas import (
     revoke_sync_token,
 )
 from movieclaw_api.settings.smart_subscription import SmartAutomationSettings
-from movieclaw_api.settings.trakt import TraktAppSetting
 from movieclaw_api.settings.store import (
     SettingStore,
     get_setting_store,
     init_setting_store,
     reset_setting_store,
 )
+from movieclaw_api.settings.trakt import TraktAppSetting
 from movieclaw_api.settings.web_search import WebSearchSetting
 from movieclaw_api.settings.webhook import (
     WebhookEndpoint,

@@ -27,7 +27,19 @@ class TraktNetworkError(TraktError):
 
 
 class TraktPending(TraktError):
-    """设备码还没被用户授权。"""
+    """设备码还没被用户授权。``slow`` 表示 Trakt 要求放慢轮询。"""
+
+    def __init__(self, message: str = "等待用户在 Trakt 上授权", *, slow: bool = False) -> None:
+        super().__init__(message)
+        self.slow = slow
+
+
+class TraktDeviceRejected(TraktError):
+    """设备码不能再轮询：无效、已使用、已过期，或用户拒绝。"""
+
+    def __init__(self, status: int) -> None:
+        self.status = status
+        super().__init__(f"Trakt 返回 {status}")
 
 
 @dataclass(frozen=True)
@@ -100,9 +112,11 @@ class TraktClient:
             "/oauth/device/token",
             {"code": code, "client_id": self._client_id, "client_secret": self._client_secret},
         )
-        pending = _error_code(response) in {"authorization_pending", "slow_down"}
-        if response.status_code == 400 and pending:
-            raise TraktPending("等待用户在 Trakt 上授权")
+        status = response.status_code
+        if status in {400, 429}:
+            raise TraktPending(slow=status == 429)
+        if status in {404, 409, 410, 418}:
+            raise TraktDeviceRejected(status)
         body, _ = _decode(response)
         return _token(body)
 
@@ -141,16 +155,6 @@ def _decode(response: httpx.Response) -> tuple[object, dict[str, str]]:
     if response.status_code >= 400:
         raise TraktError(f"Trakt 返回 {response.status_code}")
     return response.json(), {key.lower(): value for key, value in response.headers.items()}
-
-
-def _error_code(response: httpx.Response) -> str:
-    try:
-        body = response.json()
-    except ValueError:
-        return ""
-    if isinstance(body, dict):
-        return str(body.get("error") or "")
-    return ""
 
 
 def _as_dict(body: object) -> dict:

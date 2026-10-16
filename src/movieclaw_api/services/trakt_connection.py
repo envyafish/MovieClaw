@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,13 +18,19 @@ from movieclaw_api.settings import TraktAppSetting, get_setting_store
 from movieclaw_api.settings.base import SettingSchema
 from movieclaw_db.crypto import SecretBox, get_secret_box
 from movieclaw_db.repositories.setting_repo import SettingRepository
-from movieclaw_media.trakt import TraktClient, TraktError, TraktPending
+from movieclaw_media.trakt import TraktClient, TraktDeviceRejected, TraktError, TraktPending
 
 logger = logging.getLogger("movieclaw_api.trakt")
 
 _USER_PREFIX = "integration.trakt.user."
 _SECRET_FIELDS = frozenset({"access_token", "refresh_token", "device_code"})
 _EXPIRED_MESSAGE = "验证码已过期，请重新获取"
+_DEVICE_MESSAGES = {
+    404: "验证码无效，请重新获取",
+    409: "这个验证码已经使用过，请重新获取",
+    410: _EXPIRED_MESSAGE,
+    418: "已在 Trakt 上拒绝授权",
+}
 
 
 class TraktConnection(SettingSchema):
@@ -160,10 +166,17 @@ async def poll_connection(owner_id: int) -> TraktConnectionView:
     client = await get_trakt_client()
     try:
         bundle = await client.device_token(connection.device_code)
-    except TraktPending:
+    except TraktPending as exc:
         connection.last_polled_at = _iso(now)
+        if exc.slow:
+            connection.poll_interval_seconds = min(connection.poll_interval_seconds + 5, 60)
         await store.save(owner_id, connection)
         return _view(app, connection)
+    except TraktDeviceRejected as exc:
+        _clear_device(connection)
+        connection.status = "disconnected"
+        await store.save(owner_id, connection)
+        return _view(app, connection, message=_DEVICE_MESSAGES[exc.status])
     username = ""
     try:
         username = await client.username(bundle.access_token)
@@ -258,7 +271,7 @@ def _decrypt(data: dict) -> None:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(moment: datetime) -> str:
@@ -270,5 +283,5 @@ def _parse(value: str) -> datetime | None:
         return None
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
+        return parsed.replace(tzinfo=UTC)
     return parsed

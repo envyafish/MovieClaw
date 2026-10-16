@@ -34,8 +34,6 @@ from movieclaw_api.api.routes.auth import router as auth_router
 from movieclaw_api.api.routes.channels import router as channels_router
 from movieclaw_api.api.routes.channels_legacy import router as channels_legacy_router
 from movieclaw_api.api.routes.cloud import router as cloud_router
-from movieclaw_api.api.routes.trakt import connection_router as trakt_connection_router
-from movieclaw_api.api.routes.trakt import router as trakt_router
 from movieclaw_api.api.routes.collections import router as collections_router
 from movieclaw_api.api.routes.discover import router as discover_router
 from movieclaw_api.api.routes.discover import search_router as title_search_router
@@ -87,6 +85,8 @@ from movieclaw_api.api.routes.subscriptions import router as subscriptions_route
 from movieclaw_api.api.routes.subtitle_gen import router as subtitle_gen_router
 from movieclaw_api.api.routes.system_notices import router as system_notices_router
 from movieclaw_api.api.routes.tips import router as tips_router
+from movieclaw_api.api.routes.trakt import connection_router as trakt_connection_router
+from movieclaw_api.api.routes.trakt import router as trakt_router
 from movieclaw_api.api.routes.transcode_worker import router as transcode_worker_router
 from movieclaw_api.api.routes.ui import router as ui_router
 from movieclaw_api.api.routes.web_search import router as web_search_router

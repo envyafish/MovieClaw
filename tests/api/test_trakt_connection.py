@@ -16,7 +16,13 @@ from movieclaw_api.settings.store import reset_setting_store
 from movieclaw_db.crypto import SecretBox, reset_secret_box
 from movieclaw_db.engine import get_database
 from movieclaw_db.repositories.setting_repo import SettingRepository
-from movieclaw_media.trakt import DeviceCode, TokenBundle, TraktError, TraktPending
+from movieclaw_media.trakt import (
+    DeviceCode,
+    TokenBundle,
+    TraktDeviceRejected,
+    TraktError,
+    TraktPending,
+)
 
 _APP = "/api/v1/integrations/trakt/app"
 _CONN = "/api/v1/integrations/trakt/connection"
@@ -30,7 +36,13 @@ class FakeTrakt:
         self.token_calls = 0
 
     async def device_code(self) -> DeviceCode:
-        return DeviceCode("device-secret", "ABCD1234", "https://trakt.tv/activate", 600, self.interval)
+        return DeviceCode(
+            "device-secret",
+            "ABCD1234",
+            "https://trakt.tv/activate",
+            600,
+            self.interval,
+        )
 
     async def device_token(self, code: str) -> TokenBundle:
         self.token_calls += 1
@@ -81,12 +93,17 @@ def _install(monkeypatch, fake: FakeTrakt) -> None:
 
 
 def _save_app(client: TestClient, *, client_id: str = "cid", secret: str = "super-secret") -> None:
-    assert client.put(_APP, json={"client_id": client_id, "client_secret": secret}).status_code == 200
+    saved = client.put(_APP, json={"client_id": client_id, "client_secret": secret})
+    assert saved.status_code == 200
 
 
 def _login(client: TestClient, username: str, password: str) -> None:
     client.post("/api/v1/auth/logout")
-    assert client.post("/api/v1/auth/login", json={"username": username, "password": password}).status_code == 200
+    logged_in = client.post(
+        "/api/v1/auth/login",
+        json={"username": username, "password": password},
+    )
+    assert logged_in.status_code == 200
 
 
 async def _row(owner_id: int):
@@ -137,6 +154,33 @@ async def test_device_code_stays_server_side(client: TestClient, monkeypatch, ca
         assert secret not in text
 
 
+async def test_rejected_device_code_disconnects(client: TestClient, monkeypatch) -> None:
+    class Denied(FakeTrakt):
+        async def device_token(self, code: str) -> TokenBundle:
+            raise TraktDeviceRejected(418)
+
+    _install(monkeypatch, Denied())
+    _save_app(client)
+    assert client.post(_CONN).status_code == 200
+    polled = client.post(_POLL)
+    data = polled.json()["data"]
+    assert data["status"] == "disconnected"
+    assert data["message"] == "已在 Trakt 上拒绝授权"
+
+
+async def test_slow_down_waits_longer(client: TestClient, monkeypatch) -> None:
+    class Slow(FakeTrakt):
+        async def device_token(self, code: str) -> TokenBundle:
+            raise TraktPending("waiting", slow=True)
+
+    _install(monkeypatch, Slow())
+    _save_app(client)
+    assert client.post(_CONN).status_code == 200
+    assert client.post(_POLL).json()["data"]["status"] == "pending"
+    connection = await TraktConnectionStore().get(0)
+    assert connection.poll_interval_seconds == 10
+
+
 def test_connected_user_must_disconnect_first(client: TestClient, monkeypatch) -> None:
     fake = FakeTrakt(interval=0)
     _install(monkeypatch, fake)
@@ -171,7 +215,10 @@ def test_member_cannot_see_another_users_name(client: TestClient, monkeypatch) -
     fake = FakeTrakt(interval=0)
     _install(monkeypatch, fake)
     _save_app(client)
-    created = client.post("/api/v1/members", json={"username": "family", "password": "family-pass-1"})
+    created = client.post(
+        "/api/v1/members",
+        json={"username": "family", "password": "family-pass-1"},
+    )
     assert created.status_code == 200
     _login(client, "family", "family-pass-1")
     client.post(_CONN)
@@ -217,7 +264,10 @@ async def test_delete_member_removes_only_that_connection(client: TestClient, mo
     client.post(_CONN)
     client.post(_POLL)
     assert client.post(_POLL).json()["data"]["status"] == "connected"
-    created = client.post("/api/v1/members", json={"username": "family", "password": "family-pass-1"})
+    created = client.post(
+        "/api/v1/members",
+        json={"username": "family", "password": "family-pass-1"},
+    )
     member_id = created.json()["data"]["id"]
     _login(client, "family", "family-pass-1")
     client.post(_CONN)

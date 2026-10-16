@@ -159,6 +159,15 @@ var knownNonGenerated = []string{
 	// 订阅首页「刚刚入库」：与接下来继续同类的 App 首页展示聚合，按观看进度过滤
 	"subscriptions.list-recent-arrivals",
 	"ui.discovery.get",
+	// 追剧日历完整页：网页呈现层，和发现页编排一样不进命令树
+	"ui.discovery.trakt-calendar",
+	// Trakt 应用凭证和每人自己的设备码连接：设置页的事，密钥不进命令行
+	"integrations.trakt.app.show",
+	"integrations.trakt.app.set",
+	"integrations.trakt.connection.show",
+	"integrations.trakt.connection.start",
+	"integrations.trakt.connection.poll",
+	"integrations.trakt.connection.delete",
 	"discover.get-person-details",
 	"ui.subscriptions.preview-title",
 	// 影片分享的**访客侧**（docs/design/media-share.md）：靠 slug 与解锁 Cookie
